@@ -3,26 +3,24 @@ package main
 import (
 	"log"
 	"net/http"
-	"os"
 
+	"pr2/service_users/internal/config"
 	"pr2/service_users/internal/handlers"
 
 	"github.com/gorilla/mux"
 )
 
 func main() {
+
+	cfg := config.Load()
+
 	r := mux.NewRouter()
 
-	// Auth routes
+	// Handlers
 	r.HandleFunc("/v1/users/register", handlers.Register).Methods("POST")
 	r.HandleFunc("/v1/users/login", handlers.Login).Methods("POST")
-	r.HandleFunc("/v1/users/profile", handlers.Profile).Methods("GET", "PUT")
+	r.HandleFunc("/v1/users/profile", handlers.Profile).Methods("GET")
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8001"
-	}
-
-	log.Println("User Service running on port", port)
-	log.Fatal(http.ListenAndServe(":"+port, r))
+	log.Println("User service running on port", cfg.Port)
+	log.Fatal(http.ListenAndServe(":"+cfg.Port, r))
 }
