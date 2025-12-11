@@ -1,0 +1,1 @@
+FROM golang:1.25rc3-alpine3.22 AS builder
