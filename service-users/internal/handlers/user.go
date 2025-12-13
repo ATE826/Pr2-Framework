@@ -122,3 +122,97 @@ func (h *UserHandler) GetUserByID(c *gin.Context) {
 
 	response(c, http.StatusOK, true, user, nil)
 }
+
+// UpdateUser
+// @Summary Update user
+// @Description Updates user information by provided ID
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Param userId path int true "User ID"
+// @Param user body services.EditUserInput true "Обновлённые данные пользователя"
+// @Success 200 {object} services.UserResponse "Обновлённый пользователь"
+// @Security BearerAuth
+// @Router /admin/users/{userId} [put]
+func (h *UserHandler) UpdateUser(c *gin.Context) {
+	idStr := c.Param("userId")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		response(c, http.StatusBadRequest, false, nil, errors.New("invalid user ID"))
+		return
+	}
+
+	var input services.EditUserInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response(c, http.StatusBadRequest, false, nil, err)
+		return
+	}
+
+	user, err := h.service.UpdateUser(uint(id), input)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if err.Error() == "user not found" {
+			status = http.StatusNotFound
+		} else if err.Error()[:12] == "invalid role" {
+			status = http.StatusBadRequest
+		}
+		response(c, status, false, nil, err)
+		return
+	}
+
+	response(c, http.StatusOK, true, user, nil)
+}
+
+// GetUsers
+// @Summary Get users list
+// @Description Retrieves a paginated list of users
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Param page query int false "Page number"
+// @Param limit query int false "Number of records per page"
+// @Param email query string false "Email filter"
+// @Success 200 {object} services.UserListResult "List of users"
+// @Security BearerAuth
+// @Router /admin/users [get]
+func (h *UserHandler) GetUsers(c *gin.Context) {
+	pageStr := c.DefaultQuery("page", "1")
+	limitStr := c.DefaultQuery("limit", "10")
+	emailFilter := c.Query("email")
+	roleFilter := c.Query("role")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil {
+		response(c, http.StatusBadRequest, false, nil, errors.New("invalid page number"))
+		return
+	}
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		response(c, http.StatusBadRequest, false, nil, errors.New("invalid limit value"))
+		return
+	}
+
+	input := services.UserListInput{
+		Page:        page,
+		Limit:       limit,
+		EmailFilter: emailFilter,
+		RoleFilter:  roleFilter,
+	}
+
+	result, err := h.service.GetUsers(input)
+	if err != nil {
+		response(c, http.StatusInternalServerError, false, nil, err)
+		return
+	}
+
+	response(c, http.StatusOK, true, gin.H{
+		"users": result.Users,
+		"pagination": gin.H{
+			"page":       result.Page,
+			"limit":      result.Limit,
+			"total":      result.Total,
+			"totalPages": result.TotalPages,
+		},
+	}, nil)
+}
